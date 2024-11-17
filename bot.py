@@ -13,7 +13,7 @@ import torch.optim as optim
 from snake_env import Env
 from dqn import DQN
 
-env = Env(render_mode="ansi", size=5)
+env = Env(render_mode="ansi", size=16)
 
 device = torch.device("cpu")
 
@@ -156,6 +156,8 @@ for i_episode in range(num_episodes):
     total_reward = 0
 
     for t in range(1000):
+        prev_head = info[0][0]
+
         action = select_action(state)
         observation, reward, terminated, truncated, info = env.step(action.item())
         if observation is not None:
@@ -164,8 +166,24 @@ for i_episode in range(num_episodes):
         #     reward = 20
         # elif reward == 0:
         #     reward = -1
+
+        # reward = torch.tensor([reward], device=device)
+        # total_reward += reward
+
+        if info is not None and reward == 0:
+            head = info[0][0]
+            apple = info[1]
+            if (head[0] - apple[0]) ** 2 + (head[1] - apple[1]) ** 2 < (
+                prev_head[0] - apple[0]
+            ) ** 2 + (prev_head[1] - apple[1]) ** 2:
+                reward = 0.05
+            else:
+                reward = -0.05
+
         reward = torch.tensor([reward], device=device)
-        total_reward += reward
+        # print(reward)
+        total_reward += float(reward)
+
         done = terminated or truncated
 
         if terminated or truncated:
@@ -190,15 +208,15 @@ for i_episode in range(num_episodes):
         target_net.load_state_dict(target_net_state_dict)
 
         if done:
-            print(i_episode, int(total_reward))
+            print(i_episode, float(total_reward))
             episode_rewards.append(total_reward)
             # if i_episode % 100 == 0:
             #     plot_rewards()
             break
         # elif i_episode % 100 == 0:
-        #     os.system("clear")
-        #     print(i_episode)
-        #     print(env.render_state(info))
+        # os.system("clear")
+        # print(i_episode)
+        # print(env.render_state(info))
         # time.sleep(0.1)
 
 print("Complete")
@@ -207,5 +225,5 @@ plt.ioff()
 # plt.show()
 print("done\n")
 
-torch.save(policy_net.state_dict(), rf"models/{env.size}.pth")
+torch.save(policy_net.state_dict(), rf"models/conv{env.size}.pth")
 print("DONE\n")
